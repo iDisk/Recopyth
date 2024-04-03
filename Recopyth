@@ -1,0 +1,46 @@
+import subprocess
+
+def detectar_raid():
+    try:
+        # Ejecuta el comando para obtener información sobre el RAID
+        resultado = subprocess.run("sudo mdadm --detail /dev/md0", shell=True, capture_output=True, text=True)
+        salida = resultado.stdout
+        # Busca el tipo y el estado del RAID en la salida del comando
+        tipo = "Desconocido"
+        estado = "Desconocido"
+        for linea in salida.split('\n'):
+            if "Raid Level" in linea:
+                tipo = linea.split(':')[1].strip()
+            elif "State" in linea:
+                estado = linea.split(':')[1].strip()
+        return tipo, estado
+    except Exception as e:
+        print("Error al detectar el tipo y estado del RAID:", e)
+        return None, None
+
+# Define los comandos para montar el RAID y formatearlo como NTFS
+mount_command = "sudo mount /dev/md0 /mnt/raid"  # Cambia /dev/md0 por el dispositivo RAID correspondiente
+format_command = "sudo mkfs.ntfs -f /dev/md0"    # Cambia /dev/md0 por el dispositivo RAID correspondiente
+
+# Detecta el tipo y estado del RAID
+tipo_raid, estado_raid = detectar_raid()
+print("Tipo de RAID:", tipo_raid)
+print("Estado del RAID:", estado_raid)
+
+# Monta el RAID si está en un estado activo
+if estado_raid == "active":
+    try:
+        subprocess.run(mount_command, shell=True, check=True)
+        print("RAID montado correctamente.")
+    except subprocess.CalledProcessError as e:
+        print("Error al montar el RAID:", e)
+else:
+    print("El RAID no está en un estado activo, no se puede montar.")
+
+# Formatea el RAID como NTFS si está en un estado activo
+if estado_raid == "active":
+    try:
+        subprocess.run(format_command, shell=True, check=True)
+        print("El RAID ha sido formateado como NTFS correctamente.")
+    except subprocess.CalledProcessError as e:
+        print("Error al formatear el RAID como NTFS:", e)
